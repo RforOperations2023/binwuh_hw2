@@ -1,0 +1,13 @@
+name: licensedDrivers
+title: licensedDrivers
+username:
+account: binwuhu
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 8352419
+bundleId: 6862020
+url: https://binwuhu.shinyapps.io/licensedDrivers/
+when: 1676756134.00531
+lastSyncTime: 1676756134.00533
+asMultiple: FALSE
+asStatic: FALSE

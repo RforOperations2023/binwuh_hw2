@@ -20,6 +20,9 @@ ui <- dashboardPage(
   # Sidebar layout with a input and output definitions --------------
   dashboardSidebar(
     
+    tags$style(HTML(".sidebar { height: calc(100vh - 50px) !important; overflow-y: auto; }")
+  ),
+    
     # Inputs: Select variables to plot ------------------------------
     selectInput(inputId = "selected_state", 
                 label = "Select State:",

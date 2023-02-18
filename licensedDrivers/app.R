@@ -102,6 +102,9 @@ server <- function(input, output) {
   )
   
   output$linePlot <- renderPlotly({
+    if (nrow(drivers_subset()) == 0) {
+      return(NULL)
+    }
     ggplot(data = drivers_subset(),aes(x=Year, y=drivers_sum, group=Gender, color=Cohort)) + 
       geom_line(aes(group = Cohort)) + 
       labs(title="Line Graph") + 
@@ -113,6 +116,9 @@ server <- function(input, output) {
   })
   
   output$barPlot <- renderPlotly({
+    if (nrow(drivers_subset()) == 0) {
+      return(NULL)
+    }
     ggplot(data = drivers_subset(), aes(x = Year, y = drivers_sum, fill = Cohort)) +
       geom_bar(color = "black",position="stack", stat="identity") + 
       labs(title="Bar Plot") + 
@@ -124,10 +130,15 @@ server <- function(input, output) {
   })
   
   output$heatMap <- renderPlotly({
+    if (nrow(drivers_subset()) == 0) {
+      return(NULL)
+    }
       # Create heatmap plot
-      ggplot(drivers_subset(), aes(x = Year, y = Cohort, fill = drivers_sum)) +
+      ggplot(data = drivers_subset(), aes(x = Year, y = Cohort, fill = drivers_sum)) +
         geom_tile(color = "black") +
-        scale_fill_gradient(low = "white", high = "red")
+        scale_fill_gradient(low = "white", high = "red") +
+        scale_x_continuous(breaks = seq(min(drivers_subset()$Year), max(drivers_subset()$Year), 1),
+                           labels = as.character(seq(min(drivers_subset()$Year), max(drivers_subset()$Year), 1)))
   })
   
   # Download the filtered data

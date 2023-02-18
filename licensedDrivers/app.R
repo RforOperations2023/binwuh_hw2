@@ -2,7 +2,10 @@ library(shiny)
 library(ggplot2)
 library(DT)
 library(dplyr)
+library(plotly)
 library(shinydashboard)
+library(shinyWidgets)
+
 
 # Load the dataset for the app
 data <- read.csv("licensed_drivers.csv")
@@ -28,6 +31,12 @@ ui <- dashboardPage(
                  label = "Select Gender:",
                  choices = c("Female", "Male")),
     
+    # Select the Year range
+    sliderInput(inputId = "selected_year", 
+                label = "Select Year Range", 
+                min = 1994, max = 2018, 
+                value = c(2000, 2010)),
+    
     # Select which age group to display
     checkboxGroupInput(inputId = "selected_cohort",
                        label = "Select Age group:",
@@ -38,15 +47,6 @@ ui <- dashboardPage(
                   label = "Show data table",
                   value = TRUE),
     
-    # Select the Year range
-    sliderInput(inputId = "selected_year", 
-                label = "Select Year Range", 
-                min = 1994, max = 2018, 
-                value = c(2000, 2010)),
-    
-    # Horizontal line for visual separation 
-    tags$hr(),
-    
     # Add a download button
     downloadButton("downloadData", "Download Data")
   ),
@@ -56,27 +56,19 @@ ui <- dashboardPage(
     # Value Boxes ----------------------------------------------
     fluidRow(
       valueBoxOutput("total_drivers", width = 4),
-      valueBoxOutput("female_drivers", width = 4),
-      valueBoxOutput("male_drivers", width = 4)
+      valueBoxOutput("AAGR", width = 4),
+      valueBoxOutput("senior_drivers", width = 4),
     ),
-    
-    br(),
-    # Horizontal line for visual separation 
-    tags$hr(),
     
     tabBox(
       title = "Plots",
       # The id lets us use input$tabset1 on the server to find the current tab
       id = "tabset1", height = "250px",
-      tabPanel("bar Plot", plotOutput("barPlot", height = "400px")),
-      tabPanel("Line Graph", plotOutput("linePlot", height = "400px")),
-      tabPanel("Scatter Plot", plotOutput("scatterPlot", height = "400px"))),
+      tabPanel("bar Plot", plotlyOutput("barPlot", height = "400px")),
+      tabPanel("Line Graph", plotlyOutput("linePlot", height = "400px")),
+      tabPanel("Heat Map", plotlyOutput("heatMap", height = "400px"))),
     
-    # Add line break here
-    br(),
-    # Horizontal line for visual separation 
-    tags$hr(),
-    
+
     # Add the data table
     fluidRow(
       box(
@@ -109,7 +101,7 @@ server <- function(input, output) {
     }
   )
   
-  output$linePlot <- renderPlot({
+  output$linePlot <- renderPlotly({
     ggplot(data = drivers_subset(),aes(x=Year, y=drivers_sum, group=Gender, color=Cohort)) + 
       geom_line(aes(group = Cohort)) + 
       labs(title="Line Graph") + 
@@ -120,7 +112,7 @@ server <- function(input, output) {
       scale_x_continuous(breaks = seq(1994, 2018, 1))
   })
   
-  output$barPlot <- renderPlot({
+  output$barPlot <- renderPlotly({
     ggplot(data = drivers_subset(), aes(x = Year, y = drivers_sum, fill = Cohort)) +
       geom_bar(color = "black",position="stack", stat="identity") + 
       labs(title="Bar Plot") + 
@@ -131,14 +123,11 @@ server <- function(input, output) {
       scale_x_continuous(breaks = seq(1994, 2018, 1))
   })
   
-  output$scatterPlot <- renderPlot({
-    ggplot(data = drivers_subset())+
-      geom_point(aes(x=Year, y=drivers_sum, color=Cohort)) + 
-      labs(title="Scatter Plot") + 
-      theme(plot.title = element_text(hjust = 0.5)) + 
-      labs(x = "Year", y = "Drivers") + 
-      scale_y_continuous(labels = scales::comma) + 
-      scale_x_continuous(breaks = seq(1994, 2018, 1))
+  output$heatMap <- renderPlotly({
+      # Create heatmap plot
+      ggplot(drivers_subset(), aes(x = Year, y = Cohort, fill = drivers_sum)) +
+        geom_tile(color = "black") +
+        scale_fill_gradient(low = "white", high = "red")
   })
   
   # Download the filtered data
@@ -151,7 +140,6 @@ server <- function(input, output) {
     }
   )
   
-  # Total number of drivers
   output$total_drivers <- renderValueBox({
     valueBox(
       paste0(format(sum(drivers_subset()$drivers_sum), big.mark = ",")), 
@@ -161,22 +149,33 @@ server <- function(input, output) {
     )
   })
   
-  # Total number of female drivers
-  output$female_drivers <- renderValueBox({
+  output$AAGR <- renderValueBox({
+    # get the selected year from an input control called `selected_year`
+    selected_year <- input$selected_year
+    
+    # calculate the AAGR for the selected year
+    data_summed <- drivers_subset() %>% group_by(Year) %>% summarise(drivers_sum = sum(drivers_sum))
+    aagr <- (data_summed$drivers_sum[length(data_summed$drivers_sum)] / data_summed$drivers_sum[1])^(1/length(data_summed$drivers_sum)) - 1
+
+    # initialize as 0
+    if (is.null(input$selected_cohort)) {
+      aagr <- 0
+    }
+    formatted_aagr <- sprintf("%.2f%%", aagr*100)
     valueBox(
-      paste0(format(sum(filter(drivers_subset(), Gender == "Female")$drivers_sum), big.mark = ",")), 
-      "Female Drivers", 
-      icon = icon("female"), 
+      paste0(sprintf("%.2f%%", aagr*100)),
+      "AAGR for Selected Year",
+      icon = icon("chart-line"),
       color = "green"
     )
   })
   
-  # Total number of male drivers
-  output$male_drivers <- renderValueBox({
+  # Total number of senior drivers
+  output$senior_drivers <- renderValueBox({
+    senior_cohort <- c("60-64", "65-69", "70-74", "75-79","80-84","85+")
     valueBox(
-      paste0(format(sum(filter(drivers_subset(), Gender == "Male")$drivers_sum), big.mark = ",")), 
-      "Male Drivers", 
-      icon = icon("male"), 
+      paste0(format(sum(filter(drivers_subset(), Cohort %in% senior_cohort)$drivers_sum), big.mark = ",")), 
+      "Senior Drivers(>60 years old)", 
       color = "maroon"
     )
   })
